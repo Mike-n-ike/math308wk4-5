@@ -8,13 +8,76 @@ library(knitr)
 library(tidyverse)
 library(dplyr)
 library(COVID19)
+library(GGally)
+library(psych)
 ```
 
 ```{r}
 # Getting data and reformatting it
+canada_data = COVID19::covid19("Canada")
 covid_data = COVID19::covid19("Canada")
 covid_data = covid_data %>% select(1, 3:7, 10:11)
+covid_data = covid_data %>% ungroup %>% select(-id, -population)
 covid_data[is.na(covid_data)] = 0
 ```
 
+
+```{r}
+pairs.panels(covid_data, stars = TRUE)
+
+data_mean = apply(covid_data, 2, mean)
+data_mean
+
+data_var = apply(covid_data, 2, var)
+data_var
+```
+
+Because the variables have different scales, we need to scale them to unit variance before
+finding the components.
+
+```{r}
+covid_data_pca = prcomp(covid_data, scale=TRUE)
+summary(covid_data_pca)
+```
+
+```{r}
+pr.var = covid_data_pca$sdev ^ 2
+pve = pr.var / sum(pr.var)
+par(mfrow = c(1, 2))
+plot(pve, xlab = " Principal Component ",
+     ylab = " Proportion of Variance Explained ", type = 'b', col = "dodgerblue")
+#The function cumsum() computes the cumulative sum of the elements of a numeric vector
+plot(cumsum (pve), xlab = " Principal Component ",
+     ylab = "Cumulative Proportion of Variance Explained", type = 'b',col = "darkorange")
+```
+
+```{r}
+biplot(covid_data_pca, cex = c(0.5, 0.75))
+```
+
+We notice that PC1 and PC2 explain together around 90% of the total variance. This means that nearly
+90% of the information in the dataset can be determined by just the first two Principal Components.
+
+Moreover from the proportional variance graph, we see that the elbow is located at the second PC which suggests the inclusion of PC1 and PC2 to represent the majority of the data.
+
+```{r}
+covid_data_pca$rotation
+```
+
+
+The first component is positively aligned with vaccines, tested individuals, confirmed cases, recovered cases, deaths, and individuals who end up in the icu. 
+
+We can observe that tested individuals, confirmed cases and recovered cases have a stronger effect on the principal component, closely followed by deaths, icu cases and tested individuals.
+
+Lastly, vaccines seem to be more "weakly" aligned for PC1. 
+
+Therefore, the first component does not separate any variables from each other, however it does experience some "separation" in terms of the weight some variables have on PC1 compared to others.
+
+
+
+
+
+The second component is positively aligned with vaccines, (very weakly) confirmed, and (weakly) recovered, and negatively aligned with tests, deaths, and icu.
+
+The second principal component (PC2) separates those who get the vaccine and recover and those who get tested, go to the icu and die. This suggests that people who receive the COVID-19 vaccine have a better chance at recovering. One interpretation of the negative grouping is that those who get tested do so because they believe that they might have COVID-19. Thus, if they do test positive, there is a (small) correlated chance that they end up in icu and succumb to illness or end up dying at home. 
 
